@@ -72,7 +72,7 @@ class GoogleMusicStorage():
         #print "### storage getcriteria: "+repr(criteria)+" "+repr(name)
 
         if criteria == 'album':
-            query = "select album_artist, album, year, max(album_art_url) from songs group by album_artist, album"
+            query = "select album_artist, album, year, max(album_art_url) from songs group by album"
         else:
             if criteria == 'artist': criteria = 'album_artist'
             if name:

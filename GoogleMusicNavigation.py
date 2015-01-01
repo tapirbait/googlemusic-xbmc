@@ -172,7 +172,7 @@ class GoogleMusicNavigation():
         items = self.api.getCriteria(criteria, albums)
         if criteria == 'album' or (albums and criteria in ('genre','artist','composer')):
             for item in items:
-                folder = addFolder('[%s] %s'%(item[0],item[1]),{'path':criteria,'album':item[1],'artist':item[0]},getCm(criteria,item[1]),item[-1])
+                folder = addFolder('%s [%s - %s]'%(item[1],item[0], item[2]),{'path':criteria,'album':item[1],'artist':item[0]},getCm(criteria,item[1]),item[-1])
                 folder[1].setInfo(type='music', infoLabels={'year':item[2],'artist':item[0]})
                 append(folder)
         else:
