@@ -1,4 +1,7 @@
-[B]0.8.2_ruicastro1[/B]
+[B]1.0.1_ruicastro_0.8.2[/B]
+- Added support for sorting albums by Album name, Artist and Year.
+- Updated icon.
+[B]1.0.0_ruicastro_0.8.2[/B]
 - updated album navigation show albums in format "Album name [Artist name - Year]"
 [B]0.8.0[/B]
 - update gmusicapi to version 2013.02.27

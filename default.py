@@ -1,7 +1,7 @@
 import sys, xbmcaddon, xbmcgui, xbmcplugin
 
 # plugin constants
-version = "1.0.0_ruicastro_0.8.2"
+version = "1.0.1_ruicastro_0.8.2"
 plugin = "GoogleMusic-" + version
 
 # xbmc hooks

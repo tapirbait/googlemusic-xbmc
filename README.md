@@ -1,4 +1,4 @@
-#Google Music addon for XBMC
+#Google Music addon for KODI
 
 ##Usage and notes
 

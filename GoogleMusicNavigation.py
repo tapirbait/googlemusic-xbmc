@@ -173,8 +173,11 @@ class GoogleMusicNavigation():
         if criteria == 'album' or (albums and criteria in ('genre','artist','composer')):
             for item in items:
                 folder = addFolder('%s [%s - %s]'%(item[1],item[0], item[2]),{'path':criteria,'album':item[1],'artist':item[0]},getCm(criteria,item[1]),item[-1])
-                folder[1].setInfo(type='music', infoLabels={'year':item[2],'artist':item[0]})
+                folder[1].setInfo(type='music', infoLabels={'year':item[2],'artist':item[0],'album':item[1]})
                 append(folder)
+                self.xbmcplugin.addSortMethod(handle=int(sys.argv[1]), sortMethod=self.xbmcplugin.SORT_METHOD_ARTIST)
+                self.xbmcplugin.addSortMethod(handle=int(sys.argv[1]), sortMethod=self.xbmcplugin.SORT_METHOD_ALBUM)
+                self.xbmcplugin.addSortMethod(handle=int(sys.argv[1]), sortMethod=self.xbmcplugin.SORT_METHOD_VIDEO_YEAR)
         else:
             for item in items:
                 append( addFolder(item[0], {'path':criteria,'albums':item[0],'album':item[0]}, getCm(criteria,item[0]), self.icon))
