@@ -8,9 +8,10 @@ from gmusicapi import Mobileclient, Webclient
 class GoogleMusicLogin():
     def __init__(self):
         self.main      = sys.modules["__main__"]
+        self.xbmc      = self.main.xbmc
         self.xbmcgui   = self.main.xbmcgui
         self.settings  = self.main.settings
-        self.gmusicapi = Mobileclient(debug_logging=False,validate=False,verify_ssl=False)
+        self.gmusicapi = Mobileclient(debug_logging=False,validate=False,verify_ssl=True)
 
     def checkCookie(self):
         # Remove cookie data if it is older then 7 days
@@ -33,7 +34,7 @@ class GoogleMusicLogin():
             stream_url = self.gmusicapi.get_stream_url(song_id, device_id)
         else:
             self.main.log("NO DEVICE, using WEBCLIENT to stream")
-            self.gmusicapi = Webclient(debug_logging=False,validate=False,verify_ssl=False)
+            self.gmusicapi = Webclient(debug_logging=False,validate=False,verify_ssl=True)
             self.login(client='web')
             streams = self.gmusicapi.get_stream_urls(song_id)
             if len(streams) > 1:
@@ -52,7 +53,7 @@ class GoogleMusicLogin():
 
         if not device_id:
             self.main.log('Trying to fetch the device_id')
-            webclient = Webclient(debug_logging=False,validate=False,verify_ssl=False)
+            webclient = Webclient(debug_logging=False,validate=False,verify_ssl=True)
             self.checkCredentials()
             username = self.settings.getSetting('username')
             password = self.settings.getSetting('password')
@@ -65,11 +66,12 @@ class GoogleMusicLogin():
                         if device["type"] in ("PHONE","IOS"):
                             device_id = str(device["id"])
                             break
-            except:
+            except Exception as e:
+                self.main.log(e)
                 dialog = self.xbmcgui.Dialog()
                 dialog.ok("Device not Found", "Please provide a valid device_id in the addon settings")
                 self.settings.openSettings()
-                self.xbmc.executebuiltin("XBMC.RunPlugin(%s)" % sys.argv[0])
+                #self.xbmc.executebuiltin("XBMC.RunPlugin(%s)" % sys.argv[0])
             if device_id:
                 if device_id.lower().startswith('0x'): device_id = device_id[2:]
                 self.settings.setSetting('device_id',device_id)
