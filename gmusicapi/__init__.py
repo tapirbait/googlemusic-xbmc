@@ -2,15 +2,15 @@
 
 from gmusicapi._version import __version__
 
-__copyright__ = 'Copyright 2013 Simon Weber'
+__copyright__ = 'Copyright 2014 Simon Weber'
 __license__ = 'BSD 3-Clause'
 __title__ = 'gmusicapi'
 
-from gmusicapi.clients import Webclient, Mobileclient
+from gmusicapi.clients import Webclient, Musicmanager, Mobileclient
 from gmusicapi.exceptions import CallFailure
 
 # appease flake8: the imports are purposeful
-#(__version__, Webclient, Musicmanager, Mobileclient, CallFailure)
+(__version__, Webclient, Musicmanager, Mobileclient, CallFailure)
 
 
 class Api(object):

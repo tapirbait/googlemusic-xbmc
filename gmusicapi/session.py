@@ -6,7 +6,8 @@ Sessions handle the details of authentication and transporting requests.
 from contextlib import closing
 import cookielib
 
-
+import oauth2client
+import httplib2  # included with oauth2client
 import requests
 
 from gmusicapi.exceptions import (
@@ -125,9 +126,6 @@ class Webclient(_Base):
 
         return self.is_authenticated
 
-    def getCookies(self):
-        webclient.Init.perform(self, False)
-        
     def _send_with_auth(self, req_kwargs, desired_auth, rsession):
         if desired_auth.sso:
             req_kwargs.setdefault('headers', {})
@@ -141,7 +139,7 @@ class Webclient(_Base):
 
             req_kwargs['params'].update({'u': 0, 'xt': rsession.cookies['xt']})
 
-        return rsession.request(timeout=10,**req_kwargs)
+        return rsession.request(**req_kwargs)
 
 
 class Mobileclient(Webclient):
@@ -154,3 +152,39 @@ class Mobileclient(Webclient):
         self._rsession.cookies = cookielib.CookieJar()
 
         return success
+
+
+class Musicmanager(_Base):
+    def __init__(self, *args, **kwargs):
+        super(Musicmanager, self).__init__(*args, **kwargs)
+        self._oauth_creds = None
+
+    def login(self, oauth_credentials, *args, **kwargs):
+        """Store an already-acquired oauth2client.Credentials."""
+        super(Musicmanager, self).login()
+
+        try:
+            # refresh the token right away to check auth validity
+            oauth_credentials.refresh(httplib2.Http())
+        except oauth2client.client.Error:
+            log.exception("error when refreshing oauth credentials")
+
+        if oauth_credentials.access_token_expired:
+            log.info("could not refresh oauth credentials")
+            return False
+
+        self._oauth_creds = oauth_credentials
+        self.is_authenticated = True
+
+        return self.is_authenticated
+
+    def _send_with_auth(self, req_kwargs, desired_auth, rsession):
+        if desired_auth.oauth:
+            if self._oauth_creds.access_token_expired:
+                self._oauth_creds.refresh(httplib2.Http())
+
+            req_kwargs['headers'] = req_kwargs.get('headers', {})
+            req_kwargs['headers']['Authorization'] = \
+                'Bearer ' + self._oauth_creds.access_token
+
+        return rsession.request(**req_kwargs)

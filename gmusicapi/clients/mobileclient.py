@@ -1,4 +1,3 @@
-from collections import defaultdict
 import datetime
 from operator import itemgetter
 import re
@@ -45,7 +44,7 @@ class Mobileclient(_Base):
 
         return True
 
-    # TODO expose max/page-results, updated_after, etc for list operations
+    #TODO expose max/page-results, updated_after, etc for list operations
 
     def get_all_songs(self, incremental=False, include_deleted=False):
         """Returns a list of dictionaries that each represent a song.
@@ -135,7 +134,7 @@ class Mobileclient(_Base):
         mutations = [{'update': s} for s in songs]
         self._make_call(mutate_call, mutations)
 
-        # TODO
+        #TODO
         # store tracks don't send back their id, so we're
         # forced to spoof this
         return [utils.id_or_nid(d) for d in songs]
@@ -169,7 +168,7 @@ class Mobileclient(_Base):
 
         :param aa_song_id: All Access song id
         """
-        # TODO is there a way to do this on multiple tracks at once?
+        #TODO is there a way to do this on multiple tracks at once?
         # problem is with gathering aa track info
 
         aa_track_info = self.get_track_info(aa_song_id)
@@ -196,13 +195,8 @@ class Mobileclient(_Base):
 
         return [d['id'] for d in res['mutate_response']]
 
-
-    def get_devices(self, xtCookie, sjsaidCookie):
-        res = self._make_call(mobileclient.GetDevices, xtCookie, sjsaidCookie)
-        return res['settings']['devices']
-
-
-    def get_stream_url(self, song_id, device_id, quality='hi'):
+    @utils.enforce_id_param
+    def get_stream_url(self, song_id, device_id):
         """Returns a url that will point to an mp3 file.
 
         :param song_id: a single song id
@@ -242,7 +236,7 @@ class Mobileclient(_Base):
             # android device ids are now sent in base 10
             device_id = str(int(device_id, 16))
 
-        return self._make_call(mobileclient.GetStreamUrl, song_id, device_id, quality)
+        return self._make_call(mobileclient.GetStreamUrl, song_id, device_id)
 
     def get_all_playlists(self, incremental=False, include_deleted=False):
         """Returns a list of dictionaries that each represent a playlist.
@@ -315,7 +309,7 @@ class Mobileclient(_Base):
 
         :param playlist_id: the id to delete.
         """
-        # TODO accept multiple?
+        #TODO accept multiple?
 
         mutate_call = mobileclient.BatchMutatePlaylists
         del_mutations = mutate_call.build_playlist_deletes([playlist_id])
@@ -364,7 +358,7 @@ class Mobileclient(_Base):
                                           updated_after=None)
 
         for playlist in user_playlists:
-            # TODO could use a dict to make this faster
+            #TODO could use a dict to make this faster
             entries = [e for e in all_entries
                        if e['playlistId'] == playlist['id']]
             entries.sort(key=itemgetter('absolutePosition'))
@@ -484,7 +478,7 @@ class Mobileclient(_Base):
         return [e['id'] for e in res['mutate_response']]
 
     # WIP, see issue #179
-    # def reorder_playlist(self, reordered_playlist, orig_playlist=None):
+    #def reorder_playlist(self, reordered_playlist, orig_playlist=None):
     #    """TODO"""
 
     #    if not reordered_playlist['tracks']:
@@ -520,8 +514,8 @@ class Mobileclient(_Base):
 
     #    return idx_pos_pairs
 
-    # @staticmethod
-    # def _create_ple_reorder_mutations(tracks, from_to_idx_pairs):
+    #@staticmethod
+    #def _create_ple_reorder_mutations(tracks, from_to_idx_pairs):
     #    """
     #    Return a list of mutations.
 
@@ -578,7 +572,7 @@ class Mobileclient(_Base):
           Exactly one of these params must be provided, or ValueError
           will be raised.
         """
-        # TODO could expose include_tracks
+        #TODO could expose include_tracks
 
         seed = {}
         if track_id is not None:
@@ -665,7 +659,7 @@ class Mobileclient(_Base):
         See :func:`get_all_songs` for the format of a track dictionary.
         """
 
-        # TODO recently played?
+        #TODO recently played?
 
         res = self._make_call(mobileclient.ListStationTracks,
                               station_id, num_tracks, recently_played=[])
@@ -677,7 +671,7 @@ class Mobileclient(_Base):
         return stations[0].get('tracks', [])
 
     def search_all_access(self, query, max_results=50):
-        """Queries the server for All Access songs, albums and shared playlists.
+        """Queries the server for All Access songs and albums.
 
         Using this method without an All Access subscription will always result in
         CallFailure being raised.
@@ -797,40 +791,15 @@ class Mobileclient(_Base):
                      'type':'1'
                   },
                ]
-               'playlist_hits': [
-                  {
-                     'score': 0.0,
-                     'playlist':{
-                        'albumArtRef':[
-                           {
-                              'url':'http://lh4.ggpht.com/...'
-                           }
-                        ],
-                        'description': 'Krasnoyarsk concert setlist 29.09.2013',
-                        'kind': 'sj#playlist',
-                        'name': 'Amorphis Setlist',
-                        'ownerName': 'Ilya Makarov',
-                        'ownerProfilePhotoUrl': 'http://lh6.googleusercontent.com/...',
-                        'shareToken': 'AMaBXymmMfeA8iwoEWWI9Z1A...',
-                        'type': 'SHARED'
-                     },
-                     'type': '4'
-                  }
-               ]
             }
         """
         res = self._make_call(mobileclient.Search, query, max_results)
 
         hits = res.get('entries', [])
 
-        hits_by_type = defaultdict(list)
-        for hit in hits:
-            hits_by_type[hit['type']].append(hit)
-
-        return {'album_hits': hits_by_type['3'],
-                'artist_hits': hits_by_type['2'],
-                'song_hits': hits_by_type['1'],
-                'playlist_hits': hits_by_type['4']}
+        return {'album_hits': [hit for hit in hits if hit['type'] == '3'],
+                'artist_hits': [hit for hit in hits if hit['type'] == '2'],
+                'song_hits': [hit for hit in hits if hit['type'] == '1']}
 
     @utils.enforce_id_param
     def get_artist_info(self, artist_id, include_albums=True, max_top_tracks=5, max_rel_artist=5):
@@ -1045,9 +1014,7 @@ class Mobileclient(_Base):
     def get_genres(self, parent_genre_id=None):
         """Retrieves information on Google Music genres.
 
-        :param parent_genre_id: (optional) If provided, only child genres
-          will be returned. By default, all root genres are returned.
-          If this id is invalid, an empty list will be returned.
+        :param parent_genre_id: An optional ID of the parent genre
 
         Using this method without an All Access subscription will always result in
         CallFailure being raised.
@@ -1076,7 +1043,4 @@ class Mobileclient(_Base):
         to seed an All Access radio station.
         """
 
-        res = self._make_call(mobileclient.GetGenres, parent_genre_id)
-
-        # An invalid parent genre won't respond with a genres key.
-        return res.get('genres', [])
+        return self._make_call(mobileclient.GetGenres, parent_genre_id)

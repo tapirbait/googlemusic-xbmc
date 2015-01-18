@@ -11,18 +11,18 @@ is_py26 = (_ver[:2] == (2, 6))
 
 if is_py26:
     from gmusicapi.utils.counter import Counter
-    try:
-       import simplejson as json
-    except:
-       import json
+    import unittest2 as unittest
+    import simplejson as json
 else:  # 2.7
     from collections import Counter  # noqa
+    import unittest  # noqa
     import json  # noqa
 
 try:
     from appdirs import AppDirs
     my_appdirs = AppDirs('gmusicapi', 'Simon Weber')
 except ImportError:
+    print 'warning: could not import appdirs; will use current directory'
 
     class FakeAppDirs(object):
         to_spoof = set([base + '_dir' for base in

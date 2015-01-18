@@ -2,6 +2,8 @@
 
 """Utility functions used across api code."""
 
+from bisect import bisect_left
+from distutils import spawn
 import errno
 import functools
 import inspect
@@ -11,33 +13,33 @@ import re
 import subprocess
 import time
 import traceback
+import warnings
 
 from decorator import decorator
-try:
-    from google.protobuf.descriptor import FieldDescriptor
-    #Map descriptor.CPPTYPE -> python type.
-    _python_to_cpp_types = {
-        long: ('int32', 'int64', 'uint32', 'uint64'),
-        float: ('double', 'float'),
-        bool: ('bool',),
-        str: ('string',),
-    }
+from google.protobuf.descriptor import FieldDescriptor
 
-    cpp_type_to_python = dict(
-        (getattr(FieldDescriptor, 'CPPTYPE_' + cpp.upper()), python)
-        for (python, cpplist) in _python_to_cpp_types.items()
-        for cpp in cpplist
-    )
-except: pass
 from gmusicapi import __version__
 from gmusicapi.compat import my_appdirs
-from gmusicapi.exceptions import CallFailure
+from gmusicapi.exceptions import CallFailure, GmusicapiWarning
 
 # this controls the crazy logging setup that checks the callstack;
 #  it should be monkey-patched to False after importing to disable it.
 # when False, static code will simply log in the standard way under the root.
 per_client_logging = True
 
+#Map descriptor.CPPTYPE -> python type.
+_python_to_cpp_types = {
+    long: ('int32', 'int64', 'uint32', 'uint64'),
+    float: ('double', 'float'),
+    bool: ('bool',),
+    str: ('string',),
+}
+
+cpp_type_to_python = dict(
+    (getattr(FieldDescriptor, 'CPPTYPE_' + cpp.upper()), python)
+    for (python, cpplist) in _python_to_cpp_types.items()
+    for cpp in cpplist
+)
 
 log_filepath = os.path.join(my_appdirs.user_log_dir, 'gmusicapi.log')
 printed_log_start_message = False  # global, set in config_debug_logging
@@ -126,6 +128,42 @@ def deprecated(instructions):
         return func(*args, **kwargs)
 
     return wrapper
+
+
+def longest_increasing_subseq(seq):
+    """Returns the longest (non-contiguous) subsequence
+    of seq that is strictly increasing.
+    """
+    # adapted from http://goo.gl/lddm3c
+    if not seq:
+        return []
+
+    # head[j] = index in 'seq' of the final member of the best subsequence
+    # of length 'j + 1' yet found
+    head = [0]
+    # predecessor[j] = linked list of indices of best subsequence ending
+    # at seq[j], in reverse order
+    predecessor = [-1]
+    for i in xrange(1, len(seq)):
+        ## Find j such that:  seq[head[j - 1]] < seq[i] <= seq[head[j]]
+        ## seq[head[j]] is increasing, so use binary search.
+        j = bisect_left([seq[head[idx]] for idx in xrange(len(head))], seq[i])
+
+        if j == len(head):
+            head.append(i)
+        if seq[i] < seq[head[j]]:
+            head[j] = i
+
+        predecessor.append(head[j - 1] if j > 0 else -1)
+
+    ## trace subsequence back to output
+    result = []
+    trace_idx = head[-1]
+    while (trace_idx >= 0):
+        result.append(seq[trace_idx])
+        trace_idx = predecessor[trace_idx]
+
+    return result[::-1]
 
 
 def id_or_nid(song_dict):
@@ -245,7 +283,7 @@ def enforce_id_param(position=1):
 
         if not isinstance(args[position], basestring):
             raise ValueError("Invalid param type in position %s;"
-                             " expected a song id (did you pass a song dictionary?)" % position)
+                             " expected an id (did you pass a dictionary?)" % position)
 
         return function(*args, **kw)
 
@@ -266,7 +304,7 @@ def enforce_ids_param(position=1):
         if ((not isinstance(args[position], (list, tuple)) or
              not all([isinstance(e, basestring) for e in args[position]]))):
             raise ValueError("Invalid param type in position %s;"
-                             " expected song ids (did you pass song dictionaries?)" % position)
+                             " expected ids (did you pass dictionaries?)" % position)
 
         return function(*args, **kw)
 
@@ -314,7 +352,7 @@ def configure_debug_log_handlers(logger):
 
 
 @dual_decorator
-def retry(retry_exception=None, tries=6, delay=2, backoff=2, logger=None):
+def retry(retry_exception=None, tries=5, delay=2, backoff=2, logger=None):
     """Retry calling the decorated function using an exponential backoff.
 
     An exception from a final attempt will propogate.
@@ -386,13 +424,13 @@ def pb_set(msg, field_name, val):
     return True
 
 
-def transcode_to_mp3(filepath, quality=3, slice_start=None, slice_duration=None):
+def transcode_to_mp3(filepath, quality='320k', slice_start=None, slice_duration=None):
     """Return the bytestring result of transcoding the file at *filepath* to mp3.
     An ID3 header is not included in the result.
 
     :param filepath: location of file
-    :param quality: if int, pass to avconv -qscale. if string, pass to avconv -ab
-                    -qscale roughly corresponds to libmp3lame -V0, -V1...
+    :param quality: if int, pass to -q:a. if string, pass to -b:a
+                    -q:a roughly corresponds to libmp3lame -V0, -V1...
     :param slice_start: (optional) transcode a slice, starting at this many seconds
     :param slice_duration: (optional) when used with slice_start, the number of seconds in the slice
 
@@ -400,7 +438,12 @@ def transcode_to_mp3(filepath, quality=3, slice_start=None, slice_duration=None)
     """
 
     err_output = None
-    cmd = ['avconv', '-i', filepath]
+    cmd_path = spawn.find_executable('ffmpeg')
+    if cmd_path is None:
+        cmd_path = spawn.find_executable('avconv')
+        if cmd_path is None:
+            raise IOError('Neither ffmpeg nor avconv was found in your PATH')
+    cmd = [cmd_path, '-i', filepath]
 
     if slice_duration is not None:
         cmd.extend(['-t', str(slice_duration)])
@@ -408,9 +451,9 @@ def transcode_to_mp3(filepath, quality=3, slice_start=None, slice_duration=None)
         cmd.extend(['-ss', str(slice_start)])
 
     if isinstance(quality, int):
-        cmd.extend(['-qscale', str(quality)])
+        cmd.extend(['-q:a', str(quality)])
     elif isinstance(quality, basestring):
-        cmd.extend(['-ab', quality])
+        cmd.extend(['-b:a', quality])
     else:
         raise ValueError("quality must be int or string, but received %r" % quality)
 
@@ -431,14 +474,16 @@ def transcode_to_mp3(filepath, quality=3, slice_start=None, slice_duration=None)
             raise IOError  # handle errors in except
 
     except (OSError, IOError) as e:
-        log.exception('transcoding failure')
 
-        err_msg = "transcoding failed: %s. " % e
+        err_msg = "transcoding command (%s) failed: %s. " % (' '.join(cmd), e)
+
+        if 'No such file or directory' in str(e):
+            err_msg += '\navconv must be installed and in the system path.'
 
         if err_output is not None:
-            err_msg += "stderr: '%s'" % err_output
+            err_msg += "\nstderr: '%s'" % err_output
 
-        log.debug('full failure output: %s', err_output)
+        log.exception('transcoding failure:\n%s', err_msg)
 
         raise IOError(err_msg)
 

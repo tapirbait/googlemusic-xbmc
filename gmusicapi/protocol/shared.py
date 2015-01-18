@@ -4,9 +4,8 @@
 
 from collections import namedtuple
 import sys
-try:
-    from google.protobuf.descriptor import FieldDescriptor
-except:pass
+
+from google.protobuf.descriptor import FieldDescriptor
 
 import gmusicapi
 from gmusicapi.compat import json
