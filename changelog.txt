@@ -1,3 +1,5 @@
+[B]1.0.2_ruicastro_0.8.2[/B]
+- Updated gmusicapi to version 4.0.0
 [B]1.0.1_ruicastro_0.8.2[/B]
 - Added support for sorting albums by Album name, Artist and Year.
 - Updated icon.
