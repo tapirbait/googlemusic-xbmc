@@ -14,8 +14,11 @@ cp changelog.txt $dest/
 cp icon.png $dest/
 cp "icon and thumbnail licensing.txt" $dest/
 cp *.py $dest/
-cp -r resources $dest/
-cp -r gmusicapi $dest/
+# cp required python modules:
+for directory in resources gmusicapi google dateutil unittest2; do
+    cp -r $directory $dest/
+done
+
 
 if [ -f $dest-$version.zip ]; then
     rm $dest-$version.zip

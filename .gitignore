@@ -32,3 +32,5 @@ gmusic_cookies.txt
 # PyCharm project files
 .idea
 
+# built kodi plugin packages
+plugin*.zip
